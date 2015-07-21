@@ -1,38 +1,41 @@
 package main
 
 import (
-  "fmt"
-  "os"
-  "github.com/codegangsta/cli"
-)
-
-const (
-  defaultRunPath    = "/var/run/"
+	"fmt"
+	"github.com/codegangsta/cli"
+	"github.com/gofarmer/farm"
+	"github.com/gofarmer/utils/config"
+	"os"
 )
 
 func main() {
-  app := cli.NewApp()
-  app.Name = "gofarmer"
-    app.Usage = "sample command-line app"
-    app.Author = "madesst"
-    app.Email = "madesst@gmail.com"
-    app.Commands = []cli.Command{
-        {
-            Name:      "read",
-            ShortName: "r",
-            Usage:     "read something",
-            Subcommands: []cli.Command{
-                {
-                    Name:   "tweets",
-                    Usage:  "read Tweets",
-                    Action: readTweets,
-                },
-            },
-        },
-    }
-    app.Run(os.Args)
-}
+	fmt.Printf("%+v\n", config.GetGlobal())
 
-func readTweets(ctx *cli.Context) {
-    fmt.Println("Go to https://twitter.com/TheProgville to read my tweets!")
+	app := cli.NewApp()
+	app.Name = "gofarmer"
+	app.Usage = "AWS EC2 farm supervisor command-line app"
+	app.Author = "madesst"
+	app.Email = "madesst@gmail.com"
+	app.Commands = []cli.Command{
+		{
+			Name:      "farm",
+			ShortName: "f",
+			Usage:     "Operations with farm(s)",
+			Subcommands: []cli.Command{
+				{
+					Name:      "create",
+					ShortName: "c",
+					Usage:     "Create new farm",
+					Action:    farm.Create,
+				},
+			},
+		},
+		{
+			Name:      "config",
+			ShortName: "c",
+			Usage:     "Setup global credentials and other stuff",
+			Action:    farm.Create,
+		},
+	}
+	app.Run(os.Args)
 }
