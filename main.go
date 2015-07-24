@@ -46,6 +46,12 @@ func main() {
 					Usage:     "List all farms",
 					Action:    farm.List,
 				},
+				{
+					Name:      "instances",
+					ShortName: "i",
+					Usage:     "List all instances of farm",
+					Action:    farm.Instances,
+				},
 			},
 		},
 		{

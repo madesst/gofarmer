@@ -2,9 +2,12 @@ package farm
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/codegangsta/cli"
 	"github.com/crackcomm/go-clitable"
 	"github.com/gofarmer/utils/config"
+	"time"
 )
 
 var farmQuotas config.FarmQuotas = config.FarmQuotas{}
@@ -39,26 +42,52 @@ func CheckCredentialsConfig(c *cli.Context) error {
 	return nil
 }
 
+func Instances(c *cli.Context) {
+	name := c.Args().First()
+
+	if name == "" {
+		fmt.Println("This command requires a farm name argument")
+		return
+	}
+
+	fc := config.GetFarm(name)
+	fmt.Println(fc.Region)
+	svc := ec2.New(&aws.Config{Region: fc.Region})
+
+	// Sample
+	resp, err := svc.DescribeInstances(nil)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("> Number of reservation sets: ", len(resp.Reservations))
+	for idx, res := range resp.Reservations {
+		fmt.Println("  > Number of instances: ", len(res.Instances))
+		for _, inst := range resp.Reservations[idx].Instances {
+			fmt.Println("    - Instance ID: ", *inst.InstanceID)
+		}
+	}
+}
+
 func List(c *cli.Context) {
 	farmConfigs := config.GetFarms()
 
 	t := clitable.New([]string{
 		"Name",
 		"Created At",
+		"Region",
 		"Status",
 		"AMI",
-		"AWS Tag Name",
 		"Quotas",
 	})
 
 	for _, f := range farmConfigs {
 		t.AddRow(map[string]interface{}{
-			"Name":         f.Name,
-			"Created At":   f.Name,
-			"Status":       statuses[f.Status],
-			"AMI":          f.Name,
-			"AWS Tag Name": f.AwsTagName,
-			"Quotas":       f.Quotas.Merge().String(),
+			"Name":       f.Name,
+			"Created At": time.Unix(f.CreatedAt, 0),
+			"Region":     f.Region,
+			"Status":     statuses[f.Status],
+			"AMI":        f.AMI,
+			"Quotas":     f.Quotas.Merge().String(),
 		})
 	}
 	t.Print()
@@ -66,6 +95,8 @@ func List(c *cli.Context) {
 
 func Create(c *cli.Context) {
 	name := c.Args().First()
+	ami := c.Args().Get(1)
+	region := c.Args().Get(2)
 
 	if name == "" {
 		fmt.Println("This command requires a farm name argument")
@@ -77,7 +108,20 @@ func Create(c *cli.Context) {
 		fmt.Println("Farm with this name is already exist")
 	}
 
-	config.CreateFarm(name, farmQuotas)
+	if region == "" {
+		region = config.GetGlobal().DefaultRegion
+	}
+
+	fc := config.FarmConfig{
+		Name:      name,
+		Status:    0,
+		Region:    region,
+		CreatedAt: int64(time.Now().Unix()),
+		AMI:       ami,
+		Quotas:    farmQuotas,
+	}
+
+	config.CreateFarm(name, fc)
 	/*
 		1. Check and prepare internal dirs
 		2. Check and read global config

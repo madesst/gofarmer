@@ -21,7 +21,8 @@ var globalParsed bool = false
 
 var farmConfigs FarmConfigs = FarmConfigs{}
 var globalConfig GlobalConfig = GlobalConfig{
-	Version: AppVersion,
+	Version:       AppVersion,
+	DefaultRegion: "us-east-1",
 	Quotas: Quotas{
 		MaxInstances: 1,
 		MinInstances: 0,
@@ -30,8 +31,9 @@ var globalConfig GlobalConfig = GlobalConfig{
 	},
 }
 
-var configDir = os.Getenv("HOME") + string(filepath.Separator) + GlobalDirName + string(filepath.Separator)
-var farmsDir = os.Getenv("HOME") + string(filepath.Separator) + GlobalDirName + string(filepath.Separator) + FarmsDirName + string(filepath.Separator)
+var Sep string = string(filepath.Separator)
+var configDir string = os.Getenv("HOME") + Sep + GlobalDirName + Sep
+var farmsDir string = os.Getenv("HOME") + Sep + GlobalDirName + Sep + FarmsDirName + Sep
 
 func init() {
 	prepInternals()
@@ -53,20 +55,13 @@ func GetFarm(name string) *FarmConfig {
 	return nil
 }
 
-func CreateFarm(name string, farmQuotas FarmQuotas) FarmConfig {
+func CreateFarm(name string, fc FarmConfig) FarmConfig {
 	if e := os.MkdirAll(farmsDir+name, DirsMask); e != nil {
 		panic(e)
 	}
 
-	var fc FarmConfig = FarmConfig{
-		Name:       name,
-		Status:     0,
-		AwsTagName: "aws-" + name,
-		Quotas:     farmQuotas,
-	}
-
 	rawConfig, _ := json.Marshal(fc)
-	if e := ioutil.WriteFile(farmsDir+name+string(filepath.Separator)+FarmConfigName, rawConfig, FilesMask); e != nil {
+	if e := ioutil.WriteFile(farmsDir+name+Sep+FarmConfigName, rawConfig, FilesMask); e != nil {
 		panic(e)
 	}
 
@@ -109,7 +104,7 @@ func prepFarmsConfig() {
 			continue
 		}
 
-		rawFarmConfig, e := ioutil.ReadFile(farmsDir + descriptor.Name() + string(filepath.Separator) + FarmConfigName)
+		rawFarmConfig, e := ioutil.ReadFile(farmsDir + descriptor.Name() + Sep + FarmConfigName)
 		if e != nil {
 			continue
 		}

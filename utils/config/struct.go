@@ -3,19 +3,20 @@ package config
 import "strconv"
 
 type GlobalConfig struct {
-	Version string `json:"version"`
-	Quotas  Quotas `json:"quotas"`
+	Version       string `json:"version"`
+	DefaultRegion string `json:"default-region"`
+	Quotas        Quotas `json:"quotas"`
 }
 
 type FarmConfigs map[string]FarmConfig
 
 type FarmConfig struct {
-	Name       string     `json:"name"`
-	Status     int        `json:"status"`
-	CreatedAt  int        `json:"created-at"`
-	AMI        int        `json:"ami"`
-	AwsTagName string     `json:"aws-tag-name"`
-	Quotas     FarmQuotas `json:"quotas"`
+	Name      string     `json:"name"`
+	Status    int        `json:"status"`
+	CreatedAt int64      `json:"created-at"`
+	AMI       string     `json:"ami"`
+	Region    string     `json:region`
+	Quotas    FarmQuotas `json:"quotas"`
 }
 
 type FarmQuotas struct {
