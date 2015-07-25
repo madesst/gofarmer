@@ -25,10 +25,10 @@ type FarmQuotas struct {
 }
 
 type Quotas struct {
-	MaxInstances int     `json:"max-instances,omitempty"`
-	MinInstances int     `json:"min-instances,omitempty"`
-	MaxPrice     float64 `json:"max-price,omitempty"`
-	MaxAmount    float64 `json:"max-amout-per-day,omitempty"`
+	MaxInstances int     `json:"max-instances"`
+	MinInstances int     `json:"min-instances"`
+	MaxPrice     float64 `json:"max-price"`
+	MaxAmount    float64 `json:"max-amout-per-day"`
 }
 
 func FloatToString(InputNum float64) string {

@@ -3,6 +3,8 @@ package farm
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/awsutil"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/codegangsta/cli"
 	"github.com/crackcomm/go-clitable"
@@ -43,29 +45,82 @@ func CheckCredentialsConfig(c *cli.Context) error {
 }
 
 func Instances(c *cli.Context) {
-	name := c.Args().First()
+	instances, _ := instancesByNameArg(c)
 
-	if name == "" {
-		fmt.Println("This command requires a farm name argument")
-		return
+	t := clitable.New([]string{
+		"ID",
+		"Type",
+		"State",
+		"IP",
+		"AMI",
+		"Spot Request ID",
+	})
+
+	for _, inst := range instances {
+		t.AddRow(map[string]interface{}{
+			"ID":              *inst.InstanceID,
+			"Type":            *inst.InstanceType,
+			"State":           *inst.State.Name,
+			"IP":              *inst.PrivateIPAddress,
+			"AMI":             *inst.ImageID,
+			"Spot Request ID": inst.SpotInstanceRequestID,
+		})
 	}
 
-	fc := config.GetFarm(name)
-	fmt.Println(fc.Region)
-	svc := ec2.New(&aws.Config{Region: fc.Region})
+	t.Print()
+}
 
-	// Sample
-	resp, err := svc.DescribeInstances(nil)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("> Number of reservation sets: ", len(resp.Reservations))
-	for idx, res := range resp.Reservations {
-		fmt.Println("  > Number of instances: ", len(res.Instances))
-		for _, inst := range resp.Reservations[idx].Instances {
-			fmt.Println("    - Instance ID: ", *inst.InstanceID)
+func Start(c *cli.Context) {
+	instances, fc := instancesByNameArg(c)
+	for _, inst := range instances {
+		svc := ec2.New(&aws.Config{Region: fc.Region})
+		if *inst.State.Name == "running" {
+			fmt.Println(fmt.Sprintln("	>>>", *inst.InstanceID, "already running"))
+			continue
 		}
+
+		params := &ec2.StartInstancesInput{
+			InstanceIDs: []*string{
+				aws.String(*inst.InstanceID),
+			},
+		}
+		if res, resp := checkResponse(svc.StartInstances(params)); !res {
+			fmt.Println(resp)
+			continue
+		}
+
+		fmt.Println(fmt.Sprintln("	>>>", *inst.InstanceID, "started successfully"))
 	}
+
+	fc.Status = 1
+	config.SaveFarmConfig(fc)
+}
+
+func Stop(c *cli.Context) {
+	instances, fc := instancesByNameArg(c)
+	fc.Status = 1
+	for _, inst := range instances {
+		svc := ec2.New(&aws.Config{Region: fc.Region})
+		if *inst.State.Name == "stopped" {
+			fmt.Println(fmt.Sprintln("	>>>", *inst.InstanceID, "already stopped"))
+			continue
+		}
+
+		params := &ec2.StopInstancesInput{
+			InstanceIDs: []*string{
+				aws.String(*inst.InstanceID),
+			},
+		}
+		if res, resp := checkResponse(svc.StopInstances(params)); !res {
+			fmt.Println(fmt.Sprintln("	>>>", resp))
+			continue
+		}
+
+		fmt.Println(fmt.Sprintln("	>>>", *inst.InstanceID, "stopped successfully"))
+	}
+
+	fc.Status = 0
+	config.SaveFarmConfig(fc)
 }
 
 func List(c *cli.Context) {
@@ -121,7 +176,7 @@ func Create(c *cli.Context) {
 		Quotas:    farmQuotas,
 	}
 
-	config.CreateFarm(name, fc)
+	config.CreateFarm(fc)
 	/*
 		1. Check and prepare internal dirs
 		2. Check and read global config
@@ -129,4 +184,53 @@ func Create(c *cli.Context) {
 		4. Create new dir with name from input
 		5. Save typical farm config in new dir from step 4
 	*/
+}
+
+func instancesByNameArg(c *cli.Context) ([]*ec2.Instance, config.FarmConfig) {
+	name := c.Args().First()
+
+	if name == "" {
+		panic("This command requires a farm name argument")
+	}
+
+	return describeInstances(name)
+}
+
+func describeInstances(name string) ([]*ec2.Instance, config.FarmConfig) {
+	fc := config.GetFarm(name)
+	if fc == nil {
+		panic("Undefined farm \"" + name + "\"")
+	}
+	svc := ec2.New(&aws.Config{Region: fc.Region})
+
+	params := &ec2.DescribeInstancesInput{
+		Filters: []*ec2.Filter{
+			&ec2.Filter{
+				Name: aws.String("tag:gofarmer"),
+				Values: []*string{
+					aws.String(fc.Name),
+				},
+			},
+		},
+	}
+	resp, err := svc.DescribeInstances(params)
+	checkResponse(resp, err)
+
+	if resp.Reservations[0] == nil {
+		return []*ec2.Instance{}, *fc
+	}
+
+	return resp.Reservations[0].Instances, *fc
+}
+
+func checkResponse(resp interface{}, err error) (bool, string) {
+	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok {
+			return false, fmt.Sprintln(awsErr.Code(), awsErr.Message(), awsErr.OrigErr())
+		}
+	}
+
+	// Pretty-print the response data.
+	rawResponse := awsutil.StringValue(resp)
+	return true, rawResponse
 }

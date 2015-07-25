@@ -55,18 +55,21 @@ func GetFarm(name string) *FarmConfig {
 	return nil
 }
 
-func CreateFarm(name string, fc FarmConfig) FarmConfig {
-	if e := os.MkdirAll(farmsDir+name, DirsMask); e != nil {
+func CreateFarm(fc FarmConfig) FarmConfig {
+	if e := os.MkdirAll(farmsDir+fc.Name, DirsMask); e != nil {
 		panic(e)
 	}
+	SaveFarmConfig(fc)
+	return farmConfigs[fc.Name]
+}
 
+func SaveFarmConfig(fc FarmConfig) {
 	rawConfig, _ := json.Marshal(fc)
-	if e := ioutil.WriteFile(farmsDir+name+Sep+FarmConfigName, rawConfig, FilesMask); e != nil {
+	if e := ioutil.WriteFile(farmsDir+fc.Name+Sep+FarmConfigName, rawConfig, FilesMask); e != nil {
 		panic(e)
 	}
 
-	farmConfigs[name] = fc
-	return farmConfigs[name]
+	farmConfigs[fc.Name] = fc
 }
 
 func prepInternals() {
@@ -104,12 +107,12 @@ func prepFarmsConfig() {
 			continue
 		}
 
+		farmConfig := FarmConfig{}
 		rawFarmConfig, e := ioutil.ReadFile(farmsDir + descriptor.Name() + Sep + FarmConfigName)
 		if e != nil {
 			continue
 		}
 
-		farmConfig := FarmConfig{}
 		json.Unmarshal(rawFarmConfig, &farmConfig)
 		farmConfigs[descriptor.Name()] = farmConfig
 	}

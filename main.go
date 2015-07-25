@@ -52,6 +52,16 @@ func main() {
 					Usage:     "List all instances of farm",
 					Action:    farm.Instances,
 				},
+				{
+					Name:   "start",
+					Usage:  "Start all instances of farm",
+					Action: farm.Start,
+				},
+				{
+					Name:   "stop",
+					Usage:  "Stop all instances of farm",
+					Action: farm.Stop,
+				},
 			},
 		},
 		{
