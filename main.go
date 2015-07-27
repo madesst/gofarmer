@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/codegangsta/cli"
+	//flatteren dirs
 	"github.com/gofarmer/farm"
 	"github.com/gofarmer/utils/config"
 )

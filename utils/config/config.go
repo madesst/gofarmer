@@ -64,11 +64,11 @@ func CreateFarm(fc FarmConfig) FarmConfig {
 }
 
 func SaveFarmConfig(fc FarmConfig) {
+	fc.LastUpdatedAt = int64(time.Now().Unix())
 	rawConfig, _ := json.Marshal(fc)
 	if e := ioutil.WriteFile(farmsDir+fc.Name+Sep+FarmConfigName, rawConfig, FilesMask); e != nil {
 		panic(e)
 	}
-
 	farmConfigs[fc.Name] = fc
 }
 

@@ -44,8 +44,9 @@ func CheckCredentialsConfig(c *cli.Context) error {
 	return nil
 }
 
+//Move instances methods to instance.go
 func Instances(c *cli.Context) {
-	instances, _ := instancesByNameArg(c)
+	instances, fc := instancesByNameArg(c)
 
 	t := clitable.New([]string{
 		"ID",
@@ -66,7 +67,6 @@ func Instances(c *cli.Context) {
 			"Spot Request ID": inst.SpotInstanceRequestID,
 		})
 	}
-
 	t.Print()
 }
 
@@ -93,12 +93,11 @@ func Start(c *cli.Context) {
 	}
 
 	fc.Status = 1
-	config.SaveFarmConfig(fc)
+	cleanupLocks(inst, fc)
 }
 
 func Stop(c *cli.Context) {
 	instances, fc := instancesByNameArg(c)
-	fc.Status = 1
 	for _, inst := range instances {
 		svc := ec2.New(&aws.Config{Region: fc.Region})
 		if *inst.State.Name == "stopped" {
@@ -117,10 +116,11 @@ func Stop(c *cli.Context) {
 		}
 
 		fmt.Println(fmt.Sprintln("	>>>", *inst.InstanceID, "stopped successfully"))
+		saveInstanceLock(inst)
 	}
 
 	fc.Status = 0
-	config.SaveFarmConfig(fc)
+	cleanupLocks(inst, fc)
 }
 
 func List(c *cli.Context) {
@@ -132,6 +132,7 @@ func List(c *cli.Context) {
 		"Region",
 		"Status",
 		"AMI",
+		"Last Updated At",
 		"Quotas",
 	})
 
@@ -142,6 +143,7 @@ func List(c *cli.Context) {
 			"Region":     f.Region,
 			"Status":     statuses[f.Status],
 			"AMI":        f.AMI,
+			"Last Updated At": 0
 			"Quotas":     f.Quotas.Merge().String(),
 		})
 	}
@@ -177,13 +179,6 @@ func Create(c *cli.Context) {
 	}
 
 	config.CreateFarm(fc)
-	/*
-		1. Check and prepare internal dirs
-		2. Check and read global config
-		3. Check cli input if auth info does not exist in global config
-		4. Create new dir with name from input
-		5. Save typical farm config in new dir from step 4
-	*/
 }
 
 func instancesByNameArg(c *cli.Context) ([]*ec2.Instance, config.FarmConfig) {
@@ -220,7 +215,24 @@ func describeInstances(name string) ([]*ec2.Instance, config.FarmConfig) {
 		return []*ec2.Instance{}, *fc
 	}
 
+	for _, inst := range resp.Reservations[0].Instances {
+		saveInstanceLock(inst)
+	}
+	cleanupLocks(resp.Reservations[0].Instances, *fc)
+
 	return resp.Reservations[0].Instances, *fc
+}
+
+func saveInstanceLock(inst *ec2.Instance) {
+	/**
+	* 1. Prepare instance status struct
+	* 2. Call config.SaveInstanceLock
+	**/
+}
+
+func cleanupLocks(instances []*ec2.Instance, config.FarmConfig) {
+	//cleanupLocks(resp.Reservations[0].Instances)
+	config.SaveFarmConfig(fc)
 }
 
 func checkResponse(resp interface{}, err error) (bool, string) {
@@ -229,7 +241,6 @@ func checkResponse(resp interface{}, err error) (bool, string) {
 			return false, fmt.Sprintln(awsErr.Code(), awsErr.Message(), awsErr.OrigErr())
 		}
 	}
-
 	// Pretty-print the response data.
 	rawResponse := awsutil.StringValue(resp)
 	return true, rawResponse

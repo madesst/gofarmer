@@ -11,12 +11,13 @@ type GlobalConfig struct {
 type FarmConfigs map[string]FarmConfig
 
 type FarmConfig struct {
-	Name      string     `json:"name"`
-	Status    int        `json:"status"`
-	CreatedAt int64      `json:"created-at"`
-	AMI       string     `json:"ami"`
-	Region    string     `json:region`
-	Quotas    FarmQuotas `json:"quotas"`
+	Name          string     `json:"name"`
+	Status        int        `json:"status"`
+	CreatedAt     int64      `json:"created-at"`
+	LastUpdatedAt int64      `json:"last-updated-at"`
+	AMI           string     `json:"ami"`
+	Region        string     `json:region`
+	Quotas        FarmQuotas `json:"quotas"`
 }
 
 type FarmQuotas struct {
